@@ -343,15 +343,182 @@ serialize_state:
 ; rdx - Number of instructions to emulate.
 ; rcx - Index of core to emulate.
 so_emul:
+    push r12
+    push r13
+    push r14
+    push r15
+.next_iteration:
+    ; Check if finished.
+    cmp rdx, 0
+    je .end
 
-    ; lea rdi, [rel D]
-    ; mov byte [rdi + rcx], 69
+    ; Decrement the number of instructions left.
+    dec rdx
 
-    ; lea rdi, [rel PC]
-    ; mov byte [rdi + rcx], 3
+    ; Load the value of the program counter.
+    lea r8, [rel PC]
+    ; r8 stores the address of the program counter.
+    add r8, rcx
+    ; r9w stores the value of the program counter.
+    xor r9, r9
+    mov r9b, [r8]
+    ; r12w stores the next instruction.
+    mov r12w, [rdi + r9 * 2]
+    ; Increment the program counter.
+    inc r9b
+    mov [r8], r9b
+
+    ; Decode the instruction.
+    push rdi
+    push rsi
+    push rdx
+    push rcx
+
+    ; Move the instruction to the appropriate register.
+    mov di, r12w
+    call decode
+
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+
+    ; Put arg1 into r13b.
+    xor r13, r13
+    mov r13w, r12w
+    and r13w, arg_mask_2
+    shr r13w, 8
+
+    ; Put arg2 into r14b.
+    xor r14, r14
+    mov r14w, r12w
+    and r14w, arg_mask_1
+    shr r14w, 11
+
+    ; Put imm8 into r15b.
+    xor r15, r15
+    mov r15w, r12w
+    and r15w, arg_mask_3
+
+    ; Now ax stores the index of instruction to be executed.
+    cmp ax, 0
+    je .mov_instr
+    cmp ax, 1
+    je .or_instr
+    cmp ax, 2
+    je .add_instr
+    cmp ax, 3
+    je .sub_instr
+    cmp ax, 4
+    je .adc_instr
+    cmp ax, 5
+    je .sbb_instr
+    cmp ax, 6
+    je .xchg_instr
+    cmp ax, 7
+    je .movi_instr
+    cmp ax, 8
+    je .xori_instr
+    cmp ax, 9
+    je .addi_instr
+    cmp ax, 10
+    je .cmpi_instr
+    cmp ax, 11
+    je .clc_instr
+    cmp ax, 12
+    je .stc_instr
+    cmp ax, 13
+    je .brk_instr
+    cmp ax, 14
+    je .jmp_instr
+    cmp ax, 15
+    je .jnc_instr
+    cmp ax, 16
+    je .jc_instr
+    cmp ax, 17
+    je .jnz_instr
+    cmp ax, 18
+    je .jz_instr
+    cmp ax, 19
+    je .rcr_instr
+    ; Non-decodable instruction, skip.
+    jmp .next_iteration
     
+.mov_instr:
+    ; na podstawie r13b i r14b wykonać move...
+    jmp .next_iteration
+
+.or_instr:
+    jmp .next_iteration
+
+.add_instr:
+    jmp .next_iteration
+
+.sub_instr:
+    jmp .next_iteration
+
+.adc_instr:
+    jmp .next_iteration
+
+.sbb_instr:
+    jmp .next_iteration
+
+.xchg_instr:
+    jmp .next_iteration
+
+.movi_instr:
+    jmp .next_iteration
+
+.xori_instr:
+    jmp .next_iteration
+
+.addi_instr:
+    jmp .next_iteration
+
+.cmpi_instr:
+    jmp .next_iteration
+
+.clc_instr:
+    jmp .next_iteration
+
+.stc_instr:
+    jmp .next_iteration
+
+.brk_instr:
+    jmp .end
+
+.jmp_instr:
+    jmp .next_iteration
+
+.jnc_instr:
+    jmp .next_iteration
+
+.jc_instr:
+    jmp .next_iteration
+
+.jnz_instr:
+    jmp .next_iteration
+    
+.jz_instr:
+    jmp .next_iteration
+
+.rcr_instr:
+    jmp .next_iteration
+
+
+.end:
     ; Move index of the core into appropriate register.
     mov rdi, rcx
     call serialize_state
 
+    pop r15
+    pop r14
+    pop r13
+    pop r12
     ret
+
+; lea rdi, [rel D]
+; mov byte [rdi + rcx], 69
+
+; lea rdi, [rel PC]
+; mov byte [rdi + rcx], 3
