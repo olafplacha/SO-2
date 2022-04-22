@@ -1,4 +1,16 @@
 global decode
+global so_emul
+
+section .bss
+
+; Registers, program counter and flags.
+A:  resb CORES
+D:  resb CORES
+X:  resb CORES
+Y:  resb CORES
+PC: resb CORES
+C:  resb CORES
+Z:  resb CORES
 
 section .data
 
@@ -44,6 +56,10 @@ section .text
 ; si - Instruction mask.
 ; dx - Arg1 mask.
 ; cx - Arg2 mask.
+;
+; Return value: ZF.
+;
+; Modifies: rdi, rsi, ZF
 mask_compare:
     not si
     xor di, si
@@ -78,6 +94,10 @@ mask_compare:
 ;
 ; Arguments:
 ; di - Instruction code to be decoded.
+;
+; Return value: ax.
+;
+; Modifies: rdi, rsi, rdx, rcx, rax, ZF.
 decode:
     xor eax, eax
 
@@ -263,4 +283,75 @@ decode:
     inc ax
     
 .end:
+    ret
+
+; Serializes the state of a specified core.
+;
+; Arguments:
+; rdi - Index of core.
+;
+; Return value: rax.
+;
+; Modifies: rdi, rsi, rax.
+serialize_state:
+    xor eax, eax
+
+    ; Load Z flag.
+    lea rsi, [rel Z]
+    mov al, [rsi + rdi]
+
+    ; Load C flag.
+    shl rax, 8
+    lea rsi, [rel C]
+    mov al, [rsi + rdi]
+
+    ; Unused.
+    shl rax, 8
+
+    ; Load program counter.
+    shl rax, 8
+    lea rsi, [rel PC]
+    mov al, [rsi + rdi]
+
+    ; Load Y.
+    shl rax, 8
+    lea rsi, [rel Y]
+    mov al, [rsi + rdi]
+
+    ; Load X.
+    shl rax, 8
+    lea rsi, [rel X]
+    mov al, [rsi + rdi]
+
+    ; Load D register.
+    shl rax, 8
+    lea rsi, [rel D]
+    mov al, [rsi + rdi]
+
+    ; Load A register.
+    shl rax, 8
+    lea rsi, [rel A]
+    mov al, [rsi + rdi]
+
+    ret 
+
+; Emulates SO processor.
+;
+; Arguments:
+; rdi - Pointer to instructions.
+; rsi - Pointer to data.
+; rdx - Number of instructions to emulate.
+; rcx - Index of core to emulate.
+so_emul:
+
+    ; lea rdi, [rel D]
+    ; mov byte [rdi + rcx], 69
+
+    ; lea rdi, [rel PC]
+    ; mov byte [rdi + rcx], 3
+    
+    ; Move index of the core into appropriate register.
+    mov rdi, rcx
+    call serialize_state
+
     ret
