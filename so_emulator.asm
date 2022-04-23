@@ -648,7 +648,7 @@ so_emul:
     ; Add arg1 and arg2 values and put into r15b.
     add r15b, r12b
 
-    ; Set ZF if necessary.
+    ; Set zero flag.
     lea r12, [rel Z]
     cmp r15b, 0
     je .add_set_flag_1
@@ -679,7 +679,77 @@ so_emul:
 .sub_instr:
     jmp .next_iteration
 
+; ----------
+
 .adc_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Clear all bits of r15. Then put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    xor r15, r15
+    mov r15b, al
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    xor r12, r12
+    mov r12b, al
+
+    ; Add arg1 and arg2 values and put into r15.
+    add r15, r12
+
+    ; Add carry flag to r15.
+    lea r12, [rel C]
+    xor r14, r14
+    mov r14b, [r12 + rcx]
+    add r15, r14
+
+    ; Set carry flag.
+    xor r12, r12
+    mov r12, r15
+    shr r12, 8
+    lea r14, [rel C]
+    cmp r12, 1
+    je .adc_set_cflag_1
+    jmp .adc_set_cflag_0
+.adc_set_cflag_0:
+    mov byte [r14 + rcx], 0
+    jmp .adc_c_continue
+.adc_set_cflag_1:
+    mov byte [r14 + rcx], 0
+    jmp .adc_c_continue
+.adc_c_continue:
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r15b, 0
+    je .adc_set_zflag_1
+    jmp .adc_set_zflag_0
+.adc_set_zflag_0:
+    mov byte [r12 + rcx], 0
+    jmp .adc_z_continue
+.adc_set_zflag_1:
+    mov byte [r12 + rcx], 1
+    jmp .adc_z_continue
+
+.adc_z_continue:
+
+    ; Store the value of r15b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 .sbb_instr:
@@ -717,28 +787,117 @@ so_emul:
 .cmpi_instr:
     jmp .next_iteration
 
+; ----------
+
 .clc_instr:
+    lea r12, [rel C]
+    mov byte [r12 + rcx], 0
+
     jmp .next_iteration
 
+; ----------
+
 .stc_instr:
+    lea r12, [rel C]
+    mov byte [r12 + rcx], 1
+
     jmp .next_iteration
+
+; ----------
 
 .brk_instr:
     jmp .end
 
+; ----------
+
 .jmp_instr:
+    ; Increment the program counter by imm8 stored in r15b.
+    lea r13, [rel PC]
+    ; Load the program counter into r12b.
+    mov r12b, [r13 + rcx]
+    add r12b, r15b
+    mov [r13 + rcx], r12b
+
     jmp .next_iteration
+
+; ----------
 
 .jnc_instr:
+    ; Load the carry flag into r12b.
+    lea r12, [rel C]
+    mov r12b, [r12 + rcx]
+
+    ; Check if the carry flag is equal to 0.
+    cmp r12b, 0
+    jne .next_iteration
+
+    ; Increment the program counter by imm8 stored in r15b.
+    lea r13, [rel PC]
+    ; Load the program counter into r12b.
+    mov r12b, [r13 + rcx]
+    add r12b, r15b
+    mov [r13 + rcx], r12b
+
     jmp .next_iteration
+
+; ----------
 
 .jc_instr:
+    ; Load the carry flag into r12b.
+    lea r12, [rel C]
+    mov r12b, [r12 + rcx]
+
+    ; Check if the carry flag is equal to 0.
+    cmp r12b, 0
+    je .next_iteration
+
+    ; Increment the program counter by imm8 stored in r15b.
+    lea r13, [rel PC]
+    ; Load the program counter into r12b.
+    mov r12b, [r13 + rcx]
+    add r12b, r15b
+    mov [r13 + rcx], r12b
+
     jmp .next_iteration
 
+; ----------
+
 .jnz_instr:
+    ; Load the zero flag into r12b.
+    lea r12, [rel Z]
+    mov r12b, [r12 + rcx]
+
+    ; Check if the zero flag is equal to 0.
+    cmp r12b, 0
+    jne .next_iteration
+
+    ; Increment the program counter by imm8 stored in r15b.
+    lea r13, [rel PC]
+    ; Load the program counter into r12b.
+    mov r12b, [r13 + rcx]
+    add r12b, r15b
+    mov [r13 + rcx], r12b
+
     jmp .next_iteration
+
+; ----------
     
 .jz_instr:
+    ; Load the zero flag into r12b.
+    lea r12, [rel Z]
+    mov r12b, [r12 + rcx]
+
+    ; Check if the zero flag is equal to 0.
+    cmp r12b, 0
+    je .next_iteration
+
+    ; Increment the program counter by imm8 stored in r15b.
+    lea r13, [rel PC]
+    ; Load the program counter into r12b.
+    mov r12b, [r13 + rcx]
+    add r12b, r15b
+    mov [r13 + rcx], r12b
+
     jmp .next_iteration
 
 ; ----------
