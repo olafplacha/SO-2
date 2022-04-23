@@ -741,9 +741,49 @@ so_emul:
 .jz_instr:
     jmp .next_iteration
 
+; ----------
+
 .rcr_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r15b, al
+
+    ; Remember the least significant bit of arg1 in r14b.
+    mov r14b, r15b
+    and r14b, 1
+
+    ; Right shift arg1, and set the most significant bit equal to carry flag.
+    shr r15b, 1
+    ; Load the carry flag into r12b.
+    lea r12, [rel C]
+    mov r12b, [r12 + rcx]
+    shl r12b, 7
+    or r15b, r12b
+
+    ; Set carry flag equal to arg1 least significant bit.
+    lea r12, [rel C]
+    mov byte [r12 + rcx], r14b
+
+    ; Store the new value of arg1.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
+; ----------
 
 .end:
     ; Move index of the core into appropriate register.
