@@ -335,6 +335,17 @@ serialize_state:
 
     ret 
 
+; Loads argument based on given value.
+;
+; Arguments:
+; di - specifies the argument to load.
+;
+; Return value: al.
+;
+; Modifies: rdi, rax.
+load_arg:
+    
+
 ; Emulates SO processor.
 ;
 ; Arguments:
@@ -386,19 +397,19 @@ so_emul:
     ; Put arg1 into r13b.
     xor r13, r13
     mov r13w, r12w
-    and r13w, arg_mask_2
+    and r13w, [rel arg_mask_2]
     shr r13w, 8
 
     ; Put arg2 into r14b.
     xor r14, r14
     mov r14w, r12w
-    and r14w, arg_mask_1
+    and r14w, [rel arg_mask_1]
     shr r14w, 11
 
     ; Put imm8 into r15b.
     xor r15, r15
     mov r15w, r12w
-    and r15w, arg_mask_3
+    and r15w, [rel arg_mask_3]
 
     ; Now ax stores the index of instruction to be executed.
     cmp ax, 0
@@ -445,7 +456,75 @@ so_emul:
     jmp .next_iteration
     
 .mov_instr:
-    ; na podstawie r13b i r14b wykonać move...
+    ; Put the value of arg2 into r12b.
+    cmp r14b, 0
+    je .mov_instr_load_A
+    cmp r14b, 1
+    je .mov_instr_load_D
+    cmp r14b, 2
+    je .mov_instr_load_X
+    cmp r14b, 3
+    je .mov_instr_load_Y
+    cmp r14b, 4
+    je .mov_instr_load_mem_X
+    cmp r14b, 5
+    je .mov_instr_load_mem_Y
+    cmp r14b, 6
+    je .mov_instr_load_mem_X_D
+    jmp .mov_instr_load_mem_Y_D
+.mov_instr_load_A:
+    lea r12, [rel A]
+    mov r12b, [r12 + rcx]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_D:
+    lea r12, [rel D]
+    mov r12b, [r12 + rcx]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_X:
+    lea r12, [rel X]
+    mov r12b, [r12 + rcx]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_Y:
+    lea r12, [rel Y]
+    mov r12b, [r12 + rcx]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_mem_X:
+    lea r12, [rel X]
+    mov r12b, [r12 + rcx]
+    and r12, 0x00000000000000ff
+    mov r12b, [rsi + r12]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_mem_Y:
+    lea r12, [rel Y]
+    mov r12b, [r12 + rcx]
+    and r12, 0x00000000000000ff
+    mov r12b, [rsi + r12]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_mem_X_D:
+    lea r12, [rel X]
+    mov r12b, [r12 + rcx]
+    push r13
+    lea r13, [rel D]
+    mov r13b, [r13 + rcx]
+    add r12b, r13b
+    pop r13
+    and r12, 0x00000000000000ff
+    mov r12b, [rsi + r12]
+    jmp .mov_instr_arg2_loaded
+.mov_instr_load_mem_Y_D:
+    lea r12, [rel Y]
+    mov r12b, [r12 + rcx]
+    push r13
+    lea r13, [rel D]
+    mov r13b, [r13 + rcx]
+    add r12b, r13b
+    pop r13
+    and r12, 0x00000000000000ff
+    mov r12b, [rsi + r12]
+    jmp .mov_instr_arg2_loaded
+
+.mov_instr_arg2_loaded:
+
     jmp .next_iteration
 
 .or_instr:
