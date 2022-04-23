@@ -335,16 +335,155 @@ serialize_state:
 
     ret 
 
-; Loads argument based on given value.
+; Loads argument based on the given value.
 ;
 ; Arguments:
-; di - specifies the argument to load.
+; dil - Code of the argument to load.
 ;
 ; Return value: al.
 ;
 ; Modifies: rdi, rax.
 load_arg:
-    
+    cmp dil, 0
+    je .load_A
+    cmp dil, 1
+    je .load_D
+    cmp dil, 2
+    je .load_X
+    cmp dil, 3
+    je .load_Y
+    cmp dil, 4
+    je .load_mem_X
+    cmp dil, 5
+    je .load_mem_Y
+    cmp dil, 6
+    je .load_mem_X_D
+    jmp .load_mem_Y_D
+.load_A:
+    lea rax, [rel A]
+    mov al, [rax + rcx]
+    ret
+.load_D:
+    lea rax, [rel D]
+    mov al, [rax + rcx]
+    ret
+.load_X:
+    lea rax, [rel X]
+    mov al, [rax + rcx]
+    ret
+.load_Y:
+    lea rax, [rel Y]
+    mov al, [rax + rcx]
+    ret
+.load_mem_X:
+    lea rax, [rel X]
+    mov al, [rax + rcx]
+    and rax, 0xff
+    mov al, [rsi + rax]
+    ret
+.load_mem_Y:
+    lea rax, [rel Y]
+    mov al, [rax + rcx]
+    and rax, 0xff
+    mov al, [rsi + rax]
+    ret
+.load_mem_X_D:
+    push r13
+    lea rax, [rel X]
+    mov al, [rax + rcx]
+    lea r13, [rel D]
+    mov r13b, [r13 + rcx]
+    add al, r13b
+    and rax, 0xff
+    mov al, [rsi + rax]
+    pop r13
+    ret
+.load_mem_Y_D:
+    push r13
+    lea rax, [rel Y]
+    mov al, [rax + rcx]
+    lea r13, [rel D]
+    mov r13b, [r13 + rcx]
+    add al, r13b
+    and rax, 0xff
+    mov al, [rsi + rax]
+    pop r13
+    ret
+
+; Stores the second argument in a memory that is
+; specified by the first argument.
+;
+; Arguments:
+; dil - Code of the target memory. 
+; sil - Value to store.
+; rdx - Pointer to memory.
+;
+; Modifies: none.
+store_arg:
+    push r8
+    cmp dil, 0
+    je .store_A
+    cmp dil, 1
+    je .store_D
+    cmp dil, 2
+    je .store_X
+    cmp dil, 3
+    je .store_Y
+    cmp dil, 4
+    je .store_mem_X
+    cmp dil, 5
+    je .store_mem_Y
+    cmp dil, 6
+    je .store_mem_X_D
+    jmp .store_mem_Y_D
+.store_A:
+    lea r8, [rel A]
+    jmp .store_reg
+.store_D:
+    lea r8, [rel D]
+    jmp .store_reg
+.store_X:
+    lea r8, [rel X]
+    jmp .store_reg
+.store_Y:
+    lea r8, [rel Y]
+    jmp .store_reg
+.store_reg:
+    mov byte [r8 + rcx], sil
+    pop r8
+    ret
+.store_mem_X:
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    jmp .store_mem
+.store_mem_Y:
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    jmp .store_mem
+.store_mem_X_D:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    jmp .store_mem
+.store_mem_Y_D:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel Y]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    jmp .store_mem
+.store_mem:
+    ; At this point r8b stores target memory location. 
+    and r8, 0xff
+    mov byte [rdx + r8], sil
+    pop r8
+    ret
 
 ; Emulates SO processor.
 ;
@@ -456,81 +595,77 @@ so_emul:
     jmp .next_iteration
     
 .mov_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
     ; Put the value of arg2 into r12b.
-    cmp r14b, 0
-    je .mov_instr_load_A
-    cmp r14b, 1
-    je .mov_instr_load_D
-    cmp r14b, 2
-    je .mov_instr_load_X
-    cmp r14b, 3
-    je .mov_instr_load_Y
-    cmp r14b, 4
-    je .mov_instr_load_mem_X
-    cmp r14b, 5
-    je .mov_instr_load_mem_Y
-    cmp r14b, 6
-    je .mov_instr_load_mem_X_D
-    jmp .mov_instr_load_mem_Y_D
-.mov_instr_load_A:
-    lea r12, [rel A]
-    mov r12b, [r12 + rcx]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_D:
-    lea r12, [rel D]
-    mov r12b, [r12 + rcx]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_X:
-    lea r12, [rel X]
-    mov r12b, [r12 + rcx]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_Y:
-    lea r12, [rel Y]
-    mov r12b, [r12 + rcx]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_mem_X:
-    lea r12, [rel X]
-    mov r12b, [r12 + rcx]
-    and r12, 0x00000000000000ff
-    mov r12b, [rsi + r12]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_mem_Y:
-    lea r12, [rel Y]
-    mov r12b, [r12 + rcx]
-    and r12, 0x00000000000000ff
-    mov r12b, [rsi + r12]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_mem_X_D:
-    lea r12, [rel X]
-    mov r12b, [r12 + rcx]
-    push r13
-    lea r13, [rel D]
-    mov r13b, [r13 + rcx]
-    add r12b, r13b
-    pop r13
-    and r12, 0x00000000000000ff
-    mov r12b, [rsi + r12]
-    jmp .mov_instr_arg2_loaded
-.mov_instr_load_mem_Y_D:
-    lea r12, [rel Y]
-    mov r12b, [r12 + rcx]
-    push r13
-    lea r13, [rel D]
-    mov r13b, [r13 + rcx]
-    add r12b, r13b
-    pop r13
-    and r12, 0x00000000000000ff
-    mov r12b, [rsi + r12]
-    jmp .mov_instr_arg2_loaded
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    mov r12b, al
 
-.mov_instr_arg2_loaded:
+    ; Store the value of arg2 into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r12b
+    call store_arg
 
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 .or_instr:
     jmp .next_iteration
 
 .add_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r15b, al
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    mov r12b, al
+
+    ; Add arg1 and arg2 values and put into r15b.
+    add r15b, r12b
+
+    ; Set ZF if necessary.
+    lea r12, [rel ZF]
+    cmp r15b, 0
+    je .add_set_flag_1
+    jmp .add_set_flag_0
+.add_set_flag_0:
+    mov byte [r12 + rcx], 0
+    jmp .add_continue
+.add_set_flag_1:
+    mov byte [r12 + rcx], 1
+    jmp .add_continue
+
+.add_continue:
+
+    ; Store the value of r15b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 .sub_instr:
@@ -546,6 +681,19 @@ so_emul:
     jmp .next_iteration
 
 .movi_instr:
+    push rdi
+    push rsi
+    push rdx
+
+    ; Store the value of imm8 into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 .xori_instr:
