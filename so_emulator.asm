@@ -457,7 +457,7 @@ store_arg:
     mov r8b, [r8 + rcx]
     jmp .store_mem
 .store_mem_Y:
-    lea r8, [rel X]
+    lea r8, [rel Y]
     mov r8b, [r8 + rcx]
     jmp .store_mem
 .store_mem_X_D:
@@ -593,7 +593,9 @@ so_emul:
     je .rcr_instr
     ; Non-decodable instruction, skip.
     jmp .next_iteration
-    
+
+; ----------
+ 
 .mov_instr:
     push rdi
     push rsi
@@ -618,8 +620,12 @@ so_emul:
     pop rdi
     jmp .next_iteration
 
+; ----------
+
 .or_instr:
     jmp .next_iteration
+
+; ----------
 
 .add_instr:
     push rdi
@@ -643,7 +649,7 @@ so_emul:
     add r15b, r12b
 
     ; Set ZF if necessary.
-    lea r12, [rel ZF]
+    lea r12, [rel Z]
     cmp r15b, 0
     je .add_set_flag_1
     jmp .add_set_flag_0
@@ -668,6 +674,8 @@ so_emul:
     pop rdi
     jmp .next_iteration
 
+; ----------
+
 .sub_instr:
     jmp .next_iteration
 
@@ -679,6 +687,8 @@ so_emul:
 
 .xchg_instr:
     jmp .next_iteration
+
+; ----------
 
 .movi_instr:
     push rdi
@@ -695,6 +705,8 @@ so_emul:
     pop rsi
     pop rdi
     jmp .next_iteration
+
+; ----------
 
 .xori_instr:
     jmp .next_iteration
