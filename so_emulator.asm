@@ -781,8 +781,50 @@ so_emul:
 .xori_instr:
     jmp .next_iteration
 
+; ----------
+
 .addi_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r14b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r14b, al
+
+    ; Add arg1 and imm8 values and put into r14b.
+    add r14b, r15b
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r14b, 0
+    je .addi_set_flag_1
+    jmp .addi_set_flag_0
+.addi_set_flag_0:
+    mov byte [r12 + rcx], 0
+    jmp .addi_continue
+.addi_set_flag_1:
+    mov byte [r12 + rcx], 1
+    jmp .addi_continue
+
+.addi_continue:
+
+    ; Store the value of r14b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r14b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
+
+; ----------
 
 .cmpi_instr:
     jmp .next_iteration
