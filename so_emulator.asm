@@ -1,4 +1,5 @@
-global decode
+; Author: Olaf Placha
+
 global so_emul
 
 section .bss
@@ -920,6 +921,171 @@ so_emul:
 ; ----------
 
 .xchg_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    xor r12, r12
+    mov r12b, al
+
+    ; Get the address of the arg1 in memory. r13b stores the code of the address.
+    push r8
+    cmp r13b, 0
+    je .xchg_A0
+    cmp r13b, 1
+    je .xchg_D0
+    cmp r13b, 2
+    je .xchg_X0
+    cmp r13b, 3
+    je .xchg_Y0
+    cmp r13b, 4
+    je .xchg_mem_X0
+    cmp r13b, 5
+    je .xchg_mem_Y0
+    cmp r13b, 6
+    je .xchg_mem_X_D0
+    jmp .xchg_mem_Y_D0
+.xchg_A0:
+    lea r8, [rel A]
+    jmp .xchg_reg0
+.xchg_D0:
+    lea r8, [rel D]
+    jmp .xchg_reg0
+.xchg_X0:
+    lea r8, [rel X]
+    jmp .xchg_reg0
+.xchg_Y0:
+    lea r8, [rel Y]
+    jmp .xchg_reg0
+.xchg_reg0:
+    add r8, rcx
+    jmp .xchg_end0
+.xchg_mem_X0:
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end0
+.xchg_mem_Y0:
+    lea r8, [rel Y]
+    mov r8b, [r8 + rcx]
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end0
+.xchg_mem_X_D0:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end0
+.xchg_mem_Y_D0:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel Y]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end0
+.xchg_end0:
+    ; At this point r8 stores arg1 memory location.
+
+    ; Get the address of the arg2 in memory. r14b stores the code of the address.
+    push r9
+    push r8
+    cmp r14b, 0
+    je .xchg_A1
+    cmp r14b, 1
+    je .xchg_D1
+    cmp r14b, 2
+    je .xchg_X1
+    cmp r14b, 3
+    je .xchg_Y1
+    cmp r14b, 4
+    je .xchg_mem_X1
+    cmp r14b, 5
+    je .xchg_mem_Y1
+    cmp r14b, 6
+    je .xchg_mem_X_D1
+    jmp .xchg_mem_Y_D1
+.xchg_A1:
+    lea r8, [rel A]
+    jmp .xchg_reg1
+.xchg_D1:
+    lea r8, [rel D]
+    jmp .xchg_reg1
+.xchg_X1:
+    lea r8, [rel X]
+    jmp .xchg_reg1
+.xchg_Y1:
+    lea r8, [rel Y]
+    jmp .xchg_reg1
+.xchg_reg1:
+    add r8, rcx
+    jmp .xchg_end1
+.xchg_mem_X1:
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end1
+.xchg_mem_Y1:
+    lea r8, [rel Y]
+    mov r8b, [r8 + rcx]
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end1
+.xchg_mem_X_D1:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel X]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end1
+.xchg_mem_Y_D1:
+    push r9
+    lea r9, [rel D]
+    mov r9b, [r9 + rcx]
+    lea r8, [rel Y]
+    mov r8b, [r8 + rcx]
+    add r8b, r9b
+    pop r9
+    and r8, 0xff
+    add r8, rsi
+    jmp .xchg_end1
+.xchg_end1:
+    mov r9, r8
+    pop r8
+    ; At this point r9 stores arg2 memory location.
+
+    ; Atomically xchg arg1 and arg2.
+    lock xchg byte [r8], r12b
+
+    ; Now r12b contains exchanged value. Store it in arg2.
+    mov [r9], r12b
+
+    pop r9
+    pop r8
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 ; ----------
@@ -1247,9 +1413,3 @@ so_emul:
     pop r13
     pop r12
     ret
-
-; lea rdi, [rel D]
-; mov byte [rdi + rcx], 69
-
-; lea rdi, [rel PC]
-; mov byte [rdi + rcx], 3
