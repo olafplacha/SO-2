@@ -623,6 +623,50 @@ so_emul:
 ; ----------
 
 .or_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r15b, al
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    mov r12b, al
+
+    ; OR arg1 and arg2 values and put into r15b.
+    or r15b, r12b
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r15b, 0
+    je .or_set_flag_1
+    jmp .or_set_flag_0
+.or_set_flag_0:
+    mov byte [r12 + rcx], 0
+    jmp .or_continue
+.or_set_flag_1:
+    mov byte [r12 + rcx], 1
+    jmp .or_continue
+
+.or_continue:
+
+    ; Store the value of r15b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 ; ----------
@@ -677,6 +721,50 @@ so_emul:
 ; ----------
 
 .sub_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r15b, al
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    mov r12b, al
+
+    ; Subtract arg2 from arg1 put the result into r15b.
+    sub r15b, r12b
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r15b, 0
+    je .sub_set_flag_1
+    jmp .sub_set_flag_0
+.sub_set_flag_0:
+    mov byte [r12 + rcx], 0
+    jmp .sub_continue
+.sub_set_flag_1:
+    mov byte [r12 + rcx], 1
+    jmp .sub_continue
+
+.sub_continue:
+
+    ; Store the value of r15b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 ; ----------
@@ -722,7 +810,7 @@ so_emul:
     mov byte [r14 + rcx], 0
     jmp .adc_c_continue
 .adc_set_cflag_1:
-    mov byte [r14 + rcx], 0
+    mov byte [r14 + rcx], 1
     jmp .adc_c_continue
 .adc_c_continue:
 
@@ -752,8 +840,84 @@ so_emul:
     pop rdi
     jmp .next_iteration
 
+; ----------
+
 .sbb_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r15b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    xor r15, r15
+    mov r15b, al
+
+    ; Put the value of arg2 into r12b.
+    xor rdi, rdi
+    mov dil, r14b
+    call load_arg
+    xor r12, r12
+    mov r12b, al
+
+    ; Add carry flag to r12.
+    push r15
+    lea r14, [rel C]
+    xor r15, r15
+    mov r15b, [r14 + rcx]
+    add r12, r15
+    pop r15
+
+    ; Now r12 stores arg2 + carry value.
+
+    ; Subtract arg2 from arg1 put the result into r15.
+    sub r15, r12
+
+    ; Set carry flag.
+    xor r12, r12
+    mov r12, r15
+    shr r12, 63
+    lea r14, [rel C]
+    cmp r12, 1
+    je .sbb_set_cflag_1
+    jmp .sbb_set_cflag_0
+.sbb_set_cflag_0:
+    mov byte [r14 + rcx], 0
+    jmp .sbb_c_continue
+.sbb_set_cflag_1:
+    mov byte [r14 + rcx], 1
+    jmp .sbb_c_continue
+.sbb_c_continue:
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r15b, 0
+    je .sbb_set_zflag_1
+    jmp .sbb_set_zflag_0
+.sbb_set_zflag_0:
+    mov byte [r12 + rcx], 0
+    jmp .sbb_z_continue
+.sbb_set_zflag_1:
+    mov byte [r12 + rcx], 1
+    jmp .sbb_z_continue
+
+.sbb_z_continue:
+
+    ; Store the value of r15b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r15b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
+
+; ----------
 
 .xchg_instr:
     jmp .next_iteration
@@ -779,6 +943,44 @@ so_emul:
 ; ----------
 
 .xori_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r14b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    mov r14b, al
+
+    ; XOR arg1 and imm8 values and put into r14b.
+    xor r14b, r15b
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r14b, 0
+    je .xori_set_flag_1
+    jmp .xori_set_flag_0
+.xori_set_flag_0:
+    mov byte [r12 + rcx], 0
+    jmp .xori_continue
+.xori_set_flag_1:
+    mov byte [r12 + rcx], 1
+    jmp .xori_continue
+
+.xori_continue:
+
+    ; Store the value of r14b into appropriate place.
+    mov rdx, rsi
+    mov dil, r13b
+    mov sil, r14b
+    call store_arg
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 ; ----------
@@ -827,6 +1029,55 @@ so_emul:
 ; ----------
 
 .cmpi_instr:
+    push rdi
+    push rsi
+    push rdx
+    push rax
+
+    ; Put the value of arg1 into r14b.
+    xor rdi, rdi
+    mov dil, r13b
+    call load_arg
+    xor r14, r14
+    mov r14b, al
+
+    ; Add arg1 and imm8 values and put into r14.
+    sub r14, r15
+
+    ; Set carry flag.
+    xor r12, r12
+    mov r12, r14
+    shr r12, 63
+    lea r15, [rel C]
+    cmp r12, 1
+    je .cmpi_set_cflag_1
+    jmp .cmpi_set_cflag_0
+.cmpi_set_cflag_0:
+    mov byte [r15 + rcx], 0
+    jmp .cmpi_c_continue
+.cmpi_set_cflag_1:
+    mov byte [r15 + rcx], 1
+    jmp .cmpi_c_continue
+.cmpi_c_continue:
+
+    ; Set zero flag.
+    lea r12, [rel Z]
+    cmp r14b, 0
+    je .cmpi_set_zflag_1
+    jmp .cmpi_set_zflag_0
+.cmpi_set_zflag_0:
+    mov byte [r12 + rcx], 0
+    jmp .cmpi_z_continue
+.cmpi_set_zflag_1:
+    mov byte [r12 + rcx], 1
+    jmp .cmpi_z_continue
+
+.cmpi_z_continue:
+
+    pop rax
+    pop rdx
+    pop rsi
+    pop rdi
     jmp .next_iteration
 
 ; ----------
