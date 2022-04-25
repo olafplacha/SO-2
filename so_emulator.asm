@@ -1075,7 +1075,7 @@ so_emul:
     ; At this point r9 stores arg2 memory location.
 
     ; Atomically xchg arg1 and arg2.
-    lock xchg byte [r8], r12b
+    xchg byte [r8], r12b
 
     ; Now r12b contains exchanged value. Store it in arg2.
     mov [r9], r12b
